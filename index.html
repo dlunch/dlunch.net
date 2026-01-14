@@ -1,25 +1,246 @@
-<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-	<!-- Google Analytics -->
-	<script>
-		(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-		(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-		m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-		})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>dlunch.net</title>
 
-		ga('create', 'UA-7175658-3', 'auto');
-		ga('send', 'pageview');
-	</script>
-	<!-- End Google Analytics -->
-	<link href="https://dlun.ch/@d" rel="me" />
-</head>
-<body>
-  dlunch.net
-  <ul>
-    <li><a href="https://blog.dlunch.net">Blog</a></li>
-    <li><a href="https://wie-site.dlunch.net">WIE</a></li>
-  </ul>
-</body>
+    <!-- Google Analytics -->
+    <script>
+      (function (i, s, o, g, r, a, m) {
+        i["GoogleAnalyticsObject"] = r;
+        (i[r] =
+          i[r] ||
+          function () {
+            (i[r].q = i[r].q || []).push(arguments);
+          }),
+          (i[r].l = 1 * new Date());
+        (a = s.createElement(o)), (m = s.getElementsByTagName(o)[0]);
+        a.async = 1;
+        a.src = g;
+        m.parentNode.insertBefore(a, m);
+      })(
+        window,
+        document,
+        "script",
+        "https://www.google-analytics.com/analytics.js",
+        "ga"
+      );
+
+      ga("create", "UA-7175658-3", "auto");
+      ga("send", "pageview");
+    </script>
+    <!-- End Google Analytics -->
+
+    <link href="https://dlun.ch/@d" rel="me" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Fira+Code:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍊</text></svg>"
+    />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav>
+      <div class="container">
+        <a href="#" class="logo">dlunch</a>
+        <ul>
+          <li><a href="#about">About</a></li>
+          <li><a href="#projects">Projects</a></li>
+          <li><a href="#contact">Contact</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="page-layout">
+      <aside class="ad-side ad-side-left">
+        <section
+          class="ad-section ad-section-side"
+          id="ad-section-left"
+        ></section>
+      </aside>
+      <main class="main-container">
+        <!-- Hero Section -->
+        <section class="hero">
+          <div class="hero-content">
+            <h1>Hi, I'm <span class="highlight">dlunch</span> 🍊</h1>
+            <p class="subtitle">
+              I explore how things work, build tools, and share what I learn
+              along the way.
+            </p>
+            <div class="cta-buttons">
+              <a href="https://blog.dlunch.net" class="btn btn-primary"
+                >📝 Visit Blog</a
+              >
+              <a href="#projects" class="btn btn-secondary">🚀 View Projects</a>
+            </div>
+          </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about">
+          <h2 class="section-title">About Me</h2>
+          <p class="section-subtitle">A brief introduction</p>
+
+          <div class="about-content">
+            <div class="about-text">
+              <p>
+                I'm a hacker who loves digging into how things work. Whether
+                it's reverse engineering old software or building new tools, I
+                enjoy the process of learning and experimenting.
+              </p>
+              <p>
+                I'm an active open source contributor and enjoy bringing ideas
+                to life through side projects. I value clean, efficient code and
+                believe in sharing knowledge with the community.
+              </p>
+              <p>
+                Currently working on various personal projects and documenting
+                the journey on my blog.
+              </p>
+            </div>
+            <div class="skills-grid">
+              <div class="skill-tag">Rust</div>
+              <div class="skill-tag">C++</div>
+              <div class="skill-tag">Java</div>
+              <div class="skill-tag">TypeScript</div>
+              <div class="skill-tag">Python</div>
+              <div class="skill-tag">WebAssembly</div>
+              <div class="skill-tag">Docker</div>
+              <div class="skill-tag">Linux</div>
+              <div class="skill-tag">Git</div>
+              <div class="skill-tag">Reversing</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Projects Section -->
+        <section id="projects">
+          <h2 class="section-title">Projects</h2>
+          <p class="section-subtitle">Projects I've built and maintain</p>
+
+          <div class="projects-grid">
+            <article class="project-card">
+              <div class="icon">📱</div>
+              <h3>WIE (WIPI Emulator)</h3>
+              <p>
+                A WIPI (Wireless Internet Platform for Interoperability)
+                emulator that runs in the browser. Built with Rust and
+                WebAssembly, it allows you to run legacy Korean mobile
+                applications from the 2000s era.
+              </p>
+              <div class="tech-stack">
+                <span>WebAssembly</span>
+                <span>Rust</span>
+                <span>Emulator</span>
+              </div>
+              <a href="https://wie-site.dlunch.net" class="link">Try WIE</a>
+            </article>
+            <article class="project-card">
+              <div class="icon">📖</div>
+              <h3>Tech Blog</h3>
+              <p>
+                A personal tech blog where I document things I've learned while
+                developing, problem-solving processes, and technical
+                explorations. I share experiences with various programming
+                languages and frameworks.
+              </p>
+              <div class="tech-stack">
+                <span>Blog</span>
+                <span>Tech</span>
+              </div>
+              <a href="https://blog.dlunch.net" class="link">Visit Blog</a>
+            </article>
+          </div>
+        </section>
+
+        <!-- Ad Section (vertical, right sidebar, hidden if no ad code) -->
+        <section
+          class="ad-section"
+          id="ad-section"
+          style="display: none"
+        ></section>
+
+        <!-- Values Section -->
+        <section id="values">
+          <h2 class="section-title">What I Value</h2>
+          <p class="section-subtitle">Values I hold dear as a hacker</p>
+
+          <div class="values-grid">
+            <div class="value-card">
+              <div class="emoji">🔍</div>
+              <h3>Curiosity</h3>
+              <p>
+                Always asking "how does this work?" and diving deep to find out.
+              </p>
+            </div>
+            <div class="value-card">
+              <div class="emoji">📚</div>
+              <h3>Sharing</h3>
+              <p>
+                Documenting what I learn so others can benefit from the journey.
+              </p>
+            </div>
+            <div class="value-card">
+              <div class="emoji">⚡</div>
+              <h3>Efficiency</h3>
+              <p>
+                Writing clean code that performs well and is easy to maintain.
+              </p>
+            </div>
+            <div class="value-card">
+              <div class="emoji">🤝</div>
+              <h3>Open Source</h3>
+              <p>
+                Contributing to and learning from the open source community.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact">
+          <div class="contact">
+            <h2>Get In Touch</h2>
+            <p>
+              Have a question, want to collaborate, or just want to say hi? Feel
+              free to reach out!
+            </p>
+            <div class="social-links">
+              <a
+                href="#"
+                class="social-link"
+                id="email-link"
+                onclick="this.href='mai'+'lto:'+'site'+'@'+'dlun'+'.ch'"
+                >✉️ Email</a
+              >
+              <a href="https://blog.dlunch.net" class="social-link">📝 Blog</a>
+              <a href="https://github.com/dlunch" class="social-link"
+                >💻 GitHub</a
+              >
+              <a href="https://dlun.ch/@d" class="social-link">🐘 Mastodon</a>
+            </div>
+          </div>
+        </section>
+      </main>
+      <aside class="ad-side ad-side-right">
+        <section
+          class="ad-section ad-section-side"
+          id="ad-section-right"
+        ></section>
+      </aside>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <p>© 2024–2026 dlunch.net</p>
+      <p>Built with ❤️</p>
+    </footer>
+  </body>
 </html>
