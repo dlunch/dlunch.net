@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      Legacy Korean Mobile Platforms: A Reference — dlunch.net
+    </title>
+    <meta
+      name="description"
+      content="A reference overview of the mobile application platforms that ran on Korean feature phones in the 2000s — WIPI, SKVM, GVM, KVM — and the carrier-specific runtimes built on top of them."
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Fira+Code:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍊</text></svg>"
+    />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav>
+      <div class="container">
+        <a href="/" class="logo">dlunch</a>
+        <ul>
+          <li><a href="/#projects">← Projects</a></li>
+          <li><a href="/wie.html">WIE</a></li>
+          <li><a href="/rustjava.html">RustJava</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="page-layout">
+      <aside class="ad-side ad-side-left">
+        <section
+          class="ad-section ad-section-side"
+          id="ad-section-left"
+        ></section>
+      </aside>
+      <main class="main-container article-container">
+        <!-- Article Header -->
+        <header class="article-header">
+          <p class="article-kicker">Reference</p>
+          <h1>Legacy Korean Mobile Platforms</h1>
+          <p class="article-lede">
+            Before smartphones took over, Korean feature phones ran
+            applications on a thicket of carrier-specific runtimes — WIPI,
+            SKVM, GVM, KVM, and several others. This page is a reference
+            for the names, who shipped what, and how they relate to each
+            other. It's the background context that makes emulation
+            projects like WIE necessary in the first place.
+          </p>
+        </header>
+
+        <article class="prose">
+          <section>
+            <h2>The Landscape</h2>
+            <p>
+              From roughly 2001 through 2010, Korean mobile applications
+              didn't run on a single platform. Each of the three major
+              carriers — SK Telecom, KTF, and LG Telecom — shipped its
+              own application runtime on its handsets, and developers
+              who wanted nationwide distribution typically had to port
+              their app three times. This is the world that the WIPI
+              standardization effort was meant to fix, and the world
+              that emulators today have to recover from.
+            </p>
+            <p>
+              Before WIPI, every carrier picked its own technology
+              base. SK Telecom shipped two parallel platforms — a
+              compact C-based runtime and a Java-based virtual machine
+              — and let developers choose between them on a
+              per-application basis. KTF licensed Qualcomm's BREW for
+              native C/C++ applications. LG Telecom shipped its own
+              Java-based runtime called JavaStation. The result was
+              that the same game would typically exist in three
+              substantially different binary forms, one per carrier.
+              The WIPI mandate, introduced in 2005, was the
+              regulator's attempt to collapse all of this into a
+              single specification. It partially succeeded — the API
+              was unified — but each carrier kept its own binary
+              format and packaging, so even WIPI apps remained
+              carrier-specific in practice.
+            </p>
+          </section>
+
+          <section>
+            <h2>WIPI</h2>
+            <p>
+              <strong>WIPI</strong> — Wireless Internet Platform for
+              Interoperability — was a standardized mobile application
+              platform developed under the direction of Korean regulators
+              with the goal of unifying the three carriers' incompatible
+              runtimes. Development began in 2001 as a collaboration
+              between the three carriers, the major handset
+              manufacturers (Samsung, LG Electronics), and research
+              institutions (ETRI, TTA). The Ministry of Information
+              and Communication made WIPI installation mandatory on
+              all domestically sold handsets starting April 2005, and
+              the Korea Communications Commission lifted that
+              requirement starting April 2009. Across those four
+              years, the majority of Korean mobile apps and games
+              targeted it.
+            </p>
+            <p>
+              The WIPI specification defines two language bindings:
+              a Java surface (running on top of the WIPI Java
+              runtime, very roughly J2ME-like) and a C surface for
+              native applications.
+            </p>
+            <p>
+              The catch is that WIPI compliance didn't eliminate
+              carrier-specific behavior. Each carrier shipped its
+              own WIPI implementation with its own binary format,
+              packaging conventions, and extensions — and those
+              implementations were, in practice, descended from
+              whatever the carrier had been shipping before.
+              KTF's WIPI inherited the native-binary heritage of
+              BREW. SK Telecom's inherited the pure-VM execution
+              model of SK-VM. LG Telecom's took its own
+              direction with ELF binaries. Each carrier's
+              pre-WIPI legacy and its WIPI implementation are
+              covered together in the sections below.
+            </p>
+            <p>
+              So "WIPI" as a binary format doesn't quite exist;
+              "WIPI" as an API surface does, and apps written
+              against the API could in theory be rebuilt for
+              each carrier. In practice, most published apps
+              targeted a specific carrier's tooling and shipped
+              only one binary.
+            </p>
+          </section>
+
+          <section>
+            <h2>SK Telecom: GVM and SK-VM</h2>
+            <p>
+              SK Telecom didn't ship a single pre-WIPI platform —
+              it shipped two, side by side, and let developers
+              choose between them.
+            </p>
+            <p>
+              <strong>GVM</strong> was developed by Sinjisoft
+              (신지소프트) and shipped on SK Telecom handsets.
+              It exposed a Mobile C dialect rather than Java,
+              and was optimized hard for the constraints of
+              early-2000s handsets: an application size cap of
+              128 KB and a hard limit of 256 variables per
+              program were typical of the platform. In 2004,
+              Sinjisoft added a 3D extension built on the
+              ARM/Superscape Swerve engine.
+            </p>
+            <p>
+              <strong>SK-VM</strong> was the carrier's
+              Java-based alternative. It ran more slowly than
+              GVM but had looser per-application constraints,
+              which made it the more practical target for
+              larger applications such as RPGs and simulation
+              games. The two runtimes coexisted on SK Telecom
+              handsets, so developers chose between them on a
+              per-application basis.
+            </p>
+            <p>
+              SK Telecom's WIPI implementation kept the
+              pure-VM execution model that the carrier had
+              already invested in for SK-VM, so SKT WIPI apps
+              run entirely inside the Java runtime without
+              any native code execution on the side. This
+              makes SKT the simplest of the three carrier
+              WIPI variants to emulate: a JVM with the right
+              API surface is enough, with no ARM emulator
+              required.
+            </p>
+          </section>
+
+          <section>
+            <h2>KTF: BREW</h2>
+            <p>
+              KTF licensed Qualcomm's <strong>BREW</strong>
+              (Binary Runtime Environment for Wireless) for
+              its pre-WIPI application platform. Unlike the
+              VM-based platforms used by SK Telecom and LG
+              Telecom, BREW ran applications as native
+              C/C++ binaries compiled ahead of time for the
+              target handset's ARM processor. Execution was
+              faster than the VM-based alternatives, at the
+              cost of requiring the Qualcomm ARM toolchain,
+              which was expensive at the time.
+            </p>
+            <p>
+              The native-binary approach carried forward
+              into KTF's WIPI implementation. KTF WIPI
+              applications ship as a JAR containing an
+              AOT-compiled ARM binary (<code>client.bin</code>)
+              alongside a separate ADF descriptor file; the
+              JAR contains no <code>.class</code> files. Java
+              class metadata is encoded inside
+              <code>client.bin</code> as platform-specific
+              binary structures, and the Java methods
+              themselves exist there as AOT-compiled ARM
+              machine code rather than as bytecode. This is
+              the most demanding format to emulate: it
+              requires both a JVM and an ARM emulator
+              running side by side, with bridges between
+              them.
+            </p>
+          </section>
+
+          <section>
+            <h2>LG Telecom: JavaStation</h2>
+            <p>
+              LG Telecom's pre-WIPI runtime was
+              <strong>JavaStation</strong>, a Java-based
+              application platform broadly comparable in
+              role to SK Telecom's SK-VM. Contemporary
+              accounts describe it as slower than SK-VM,
+              with handset-specific bugs that complicated
+              cross-device development.
+            </p>
+            <p>
+              LG Telecom's own WIPI implementation took a
+              different technical direction from KTF's:
+              instead of AOT-compiled ARM blobs, LGT WIPI
+              applications use native ELF binaries with
+              import-table integration into the runtime.
+              This makes LGT WIPI binaries closer in spirit
+              to traditional dynamically linked native code
+              than to either KTF's monolithic
+              <code>client.bin</code> or SKT's pure-JVM
+              execution.
+            </p>
+          </section>
+
+          <section>
+            <h2>KVM and J2ME</h2>
+            <p>
+              Outside Korea, the dominant mobile Java stack
+              for most of the 2000s was Sun's
+              <strong>K Virtual Machine</strong> (KVM) —
+              the "K" stands for kilobyte, in reference to
+              the memory budget the VM was designed to fit
+              into. KVM became the runtime underlying
+              <strong>J2ME</strong> (Java 2 Micro Edition)
+              and its MIDP (Mobile Information Device
+              Profile) application standard, which is what
+              most international feature-phone games and
+              apps were built against.
+            </p>
+            <p>
+              In the Korean market J2ME never had the
+              foothold it did internationally — the
+              carrier-specific platforms and the WIPI
+              mandate left little room for it — but the
+              underlying technologies are closely
+              related. WIPI Java is functionally a cousin
+              of J2ME, and emulation projects that
+              support WIPI typically end up supporting
+              J2ME as well because much of the Java
+              runtime infrastructure is shared between
+              the two.
+            </p>
+          </section>
+
+          <section>
+            <h2>End of the Platforms</h2>
+            <p>
+              The WIPI mandate was lifted in April 2009, opening
+              the Korean market to smartphones — most notably
+              the iPhone, which arrived in Korea later that
+              year. Once iOS and Android took over, neither
+              carriers nor developers had any reason to keep
+              investing in the feature-phone runtimes. Handset
+              manufacturers stopped shipping new WIPI devices
+              within a few years; the carrier app stores were
+              shut down; toolchains stopped being maintained;
+              documentation drifted offline.
+            </p>
+            <p>
+              The applications themselves remained as
+              binary archives in personal backups and the
+              occasional preservation effort, but with no
+              hardware still in service to run them and no
+              widely available emulator, they were
+              effectively unrunnable.
+            </p>
+          </section>
+
+          <section>
+            <h2>Why This Matters for Emulation</h2>
+            <p>
+              The carrier-specific fragmentation is the reason
+              emulating "Korean mobile apps of the 2000s" is
+              not a single project but several. A single
+              emulator that wants to cover the field has to
+              implement, at minimum:
+            </p>
+            <ul>
+              <li>
+                A JVM that can run early-era Java bytecode,
+                with the right standard library subset.
+              </li>
+              <li>
+                An ARM emulator capable of running AOT-compiled
+                code, for KTF and LGT's native execution paths.
+              </li>
+              <li>
+                Reverse-engineered binary format support for
+                <code>client.bin</code> (KTF), ELF-based
+                packaging (LGT), and JAR-based packaging (SKT,
+                J2ME).
+              </li>
+              <li>
+                Platform-specific API surfaces — MIDP for J2ME,
+                WIPI Java for the standardized layer, and
+                carrier extensions on top of that.
+              </li>
+              <li>
+                Audio format handling for SMAF/MMF, the audio
+                container used by virtually all WIPI apps.
+              </li>
+            </ul>
+            <p>
+              The WIE project covers all of the above. The
+              <a href="/wie.html">WIE technical overview</a>
+              walks through how those pieces are organized in
+              practice.
+            </p>
+          </section>
+
+          <section class="article-note">
+            <p>
+              This page draws on project documentation and publicly
+              available references; some details may be inaccurate
+              or out of date. If you spot an error, please flag it
+              via the email on the
+              <a href="/#contact">home page</a>.
+            </p>
+          </section>
+
+          <section>
+            <h2>Further Reading</h2>
+            <p>
+              Most of the original specifications are no
+              longer hosted by their authors. What survives
+              is scattered across community preservation
+              efforts, archived carrier documentation, and
+              the reverse-engineering work that emulator
+              projects have published as they've gone. If
+              you're trying to understand a specific
+              binary format, the most reliable references
+              today are usually the source code of the
+              emulators themselves and the comments
+              embedded in their binary structure
+              definitions.
+            </p>
+            <div class="cta-buttons">
+              <a href="/wie.html" class="btn btn-primary"
+                >📱 Read about WIE</a
+              >
+              <a
+                href="https://github.com/dlunch/wie"
+                class="btn btn-secondary"
+                >💻 WIE on GitHub</a
+              >
+            </div>
+          </section>
+        </article>
+      </main>
+      <aside class="ad-side ad-side-right">
+        <section
+          class="ad-section ad-section-side"
+          id="ad-section-right"
+        ></section>
+      </aside>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <p>© 2024–2026 dlunch.net</p>
+      <p>
+        <a href="/privacy.html">Privacy Policy</a> · Built with ❤️
+      </p>
+    </footer>
+  </body>
+</html>

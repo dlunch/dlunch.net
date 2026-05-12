@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RustJava: An Embeddable JVM in Rust — dlunch.net</title>
+    <meta
+      name="description"
+      content="RustJava is an embeddable Java virtual machine written in Rust, designed to run inside other applications and on WebAssembly. This page is a technical overview."
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Fira+Code:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍊</text></svg>"
+    />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav>
+      <div class="container">
+        <a href="/" class="logo">dlunch</a>
+        <ul>
+          <li><a href="/#projects">← Projects</a></li>
+          <li><a href="/wie.html">WIE</a></li>
+          <li>
+            <a href="https://github.com/dlunch/RustJava">GitHub</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="page-layout">
+      <aside class="ad-side ad-side-left">
+        <section
+          class="ad-section ad-section-side"
+          id="ad-section-left"
+        ></section>
+      </aside>
+      <main class="main-container article-container">
+        <!-- Article Header -->
+        <header class="article-header">
+          <p class="article-kicker">Project Write-up</p>
+          <h1>RustJava: An Embeddable JVM in Rust</h1>
+          <p class="article-lede">
+            RustJava is a Java virtual machine implementation written
+            entirely in Rust. It targets early Java (roughly version 1.2),
+            compiles to WebAssembly, and is designed to be embedded inside
+            larger applications rather than run as a standalone JVM. This
+            page is a walkthrough of why the project exists, how it's
+            structured, and what trade-offs come with running a JVM under
+            those constraints.
+          </p>
+        </header>
+
+        <article class="prose">
+          <section>
+            <h2>What It Is</h2>
+            <p>
+              RustJava is not a re-implementation of OpenJDK. It's not
+              trying to keep up with modern Java releases, run a full
+              standard library, or pass the TCK. The goal is much
+              narrower: provide a small, embeddable Java runtime that
+              can be linked into other Rust applications, compiled to
+              WebAssembly, and extended with custom classes defined in
+              Rust rather than Java.
+            </p>
+            <p>
+              The target version is Java 1.2. That's deliberate. Most
+              of the historical software the project was built to
+              support was written against 1.2-era APIs, and freezing
+              the language target at that level avoids a long tail of
+              features — generics, lambdas, modules, value types —
+              that would massively expand the implementation surface
+              without changing what RustJava can actually run.
+            </p>
+          </section>
+
+          <section>
+            <h2>Why It Exists</h2>
+            <p>
+              RustJava grew out of a concrete need. The
+              <a href="/wie.html">WIE emulator</a> needed a JVM that
+              could be linked directly into the emulator binary, run
+              in a <code>no_std</code> environment so it could be
+              compiled to WebAssembly, and let WIPI and MIDP APIs be
+              implemented in Rust rather than as a pile of Java glue
+              code. Standard JVMs failed all three requirements: they
+              expect a host operating system, they expect to be the
+              top-level process, and they expect new classes to be
+              defined as <code>.class</code> files at runtime.
+            </p>
+            <p>
+              The host environment for WIE is the browser, where
+              shipping a native JVM is not practical to begin
+              with, and the runtime requirements include features
+              — like callback-driven scheduling and cooperative
+              async tasks — that don't map cleanly onto an
+              off-the-shelf JVM's threading model. RustJava
+              became reusable enough that it now stands on its
+              own outside the emulator.
+            </p>
+          </section>
+
+          <section>
+            <h2>Workspace Layout</h2>
+            <p>
+              The project is split into a small set of crates, each
+              owning one piece of the runtime.
+            </p>
+            <ul>
+              <li>
+                <strong><code>jvm</code></strong> — the JVM core.
+                Class loading, classes and instances, method and
+                field metadata, value representations, the garbage
+                collector, and the thread abstraction. Compiled as
+                <code>no_std</code>; everything dynamic goes
+                through <code>alloc</code>.
+              </li>
+              <li>
+                <strong><code>jvm_rust</code></strong> — the
+                execution engine. Bytecode interpretation, stack
+                frame management, and the Rust-backed
+                implementations of the JVM core traits. This is
+                where actual Java code gets executed instruction
+                by instruction.
+              </li>
+              <li>
+                <strong><code>classfile</code></strong> — the
+                <code>.class</code> file parser. Constant pool,
+                attributes, fields, methods, and the opcode
+                table. Decoupled from the rest of the runtime so
+                it can also be used as a standalone analysis
+                tool.
+              </li>
+              <li>
+                <strong><code>java_class_proto</code></strong> —
+                the Rust-defined class prototype system. This is
+                the layer that lets a host application register
+                Java classes whose methods are actually Rust
+                functions.
+              </li>
+              <li>
+                <strong><code>java_runtime</code></strong> — the
+                bundled Java standard library, implemented as
+                Rust-defined class prototypes. Covers
+                <code>java.lang</code>, <code>java.io</code>,
+                <code>java.util</code>, and the other 1.2-era
+                packages an embedded app is likely to touch.
+              </li>
+            </ul>
+            <p>
+              An embedding application can pull in just the pieces
+              it needs. A user that only wants to parse class files
+              can depend on <code>classfile</code> alone; a user
+              that wants a full embedded JVM pulls in
+              <code>jvm</code>, <code>jvm_rust</code>, and
+              <code>java_runtime</code>.
+            </p>
+          </section>
+
+          <section>
+            <h2>Rust-Defined Class Prototypes</h2>
+            <p>
+              The most distinctive part of RustJava is how it lets
+              host applications add classes to the runtime. In a
+              normal JVM, every class either comes from a
+              <code>.class</code> file on the classpath or from a
+              JNI-implemented native library. RustJava adds a third
+              option: a class prototype defined in Rust, where the
+              class's fields and method signatures are declared as
+              Rust data and the method bodies are async Rust
+              functions.
+            </p>
+            <p>
+              From the running Java code's perspective, these
+              classes are indistinguishable from classes loaded
+              from a <code>.class</code> file. They participate in
+              method dispatch, can be referenced by name, can be
+              extended, and can throw and catch Java exceptions.
+              Underneath, when the interpreter dispatches a method
+              call to a prototype class, it hands off to the
+              registered Rust function instead of fetching a
+              bytecode array to interpret.
+            </p>
+            <p>
+              For embedders, this is the feature that makes the
+              project worth building. Implementing
+              <code>java.lang.String</code> or
+              <code>org.kwis.msp.lcdui.Graphics</code> in Java and
+              then having to plumb every primitive operation back
+              out to the host through JNI is enormously more
+              painful than writing the class once in Rust and
+              registering it. The standard library shipped with
+              RustJava itself is built this way.
+            </p>
+          </section>
+
+          <section>
+            <h2>The <code>no_std</code> and WebAssembly Story</h2>
+            <p>
+              Core crates are written as <code>no_std</code>, using
+              the <code>alloc</code> crate for heap-allocated
+              types. This means there's no implicit dependency on
+              filesystems, threading primitives, or any other
+              capability that the operating system would normally
+              provide. The host application supplies whatever
+              external integrations the JVM needs through
+              explicit trait implementations.
+            </p>
+            <p>
+              On native targets the project links against
+              <code>tokio</code> with the multi-threaded runtime;
+              on WebAssembly it links against <code>tokio</code>
+              with the single-threaded runtime instead. Apart from
+              the executor swap, the same code runs in both
+              environments. This matters because WIE's
+              browser-hosted use case needs the JVM to coexist
+              with the rest of the emulator on a single thread
+              without needing host-level threading.
+            </p>
+          </section>
+
+          <section>
+            <h2>Async All the Way Through</h2>
+            <p>
+              Method dispatch in RustJava is async. The
+              <code>Method::run</code> trait method returns a
+              future, and the interpreter awaits the result.
+              Bytecode interpretation itself is async; calls into
+              Rust-defined prototype methods are async; class
+              loading is async. This is unusual for a JVM and is
+              a direct consequence of the embedding model.
+            </p>
+            <p>
+              The host needs to be able to suspend Java execution
+              from outside — for example, when a WIPI API call
+              has to wait on a host-side audio buffer to drain,
+              or when ARM code on the other side of an emulator
+              boundary needs to run before Java can continue.
+              Making the whole call stack async makes those
+              suspensions cheap to express. A Rust-defined Java
+              method just <code>.await</code>s whatever it needs
+              and the interpreter handles the rest. No additional
+              thread-juggling, no callback inversion, no separate
+              "blocking Java thread" abstraction.
+            </p>
+          </section>
+
+          <section>
+            <h2>What It Doesn't Try to Be</h2>
+            <p>
+              It's worth being explicit about scope. RustJava is
+              not aiming to run modern Java applications. It does
+              not aim for spec-conformance. It is not a
+              replacement for OpenJDK or for any other production
+              JVM. The standard library implementation is exactly
+              as large as the embedding applications have
+              required, and no larger.
+            </p>
+            <p>
+              Within that scope, though, the project does the
+              thing it set out to do: run early-era Java code
+              from inside another Rust program, on either native
+              or WebAssembly, with the ability to extend the
+              runtime entirely from the Rust side. That's a
+              narrow niche, but it's one that no existing JVM
+              fills well.
+            </p>
+          </section>
+
+          <section class="article-note">
+            <p>
+              This page is a best-effort write-up — some details may
+              be inaccurate or out of date. If you spot an error,
+              please flag it via the email on the
+              <a href="/#contact">home page</a>.
+            </p>
+          </section>
+
+          <section class="article-cta">
+            <h2>Source</h2>
+            <p>
+              RustJava is MIT-licensed and developed on GitHub.
+              The code, issue tracker, and contribution
+              guidelines live there.
+            </p>
+            <div class="cta-buttons">
+              <a
+                href="https://github.com/dlunch/RustJava"
+                class="btn btn-primary"
+                >💻 View on GitHub</a
+              >
+              <a href="/wie.html" class="btn btn-secondary"
+                >→ See it in use: WIE</a
+              >
+            </div>
+          </section>
+        </article>
+      </main>
+      <aside class="ad-side ad-side-right">
+        <section
+          class="ad-section ad-section-side"
+          id="ad-section-right"
+        ></section>
+      </aside>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <p>© 2024–2026 dlunch.net</p>
+      <p>
+        <a href="/privacy.html">Privacy Policy</a> · Built with ❤️
+      </p>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      Writing a Mobile Platform Emulator: Practical Notes — dlunch.net
+    </title>
+    <meta
+      name="description"
+      content="Practical notes from building WIE, a browser-hosted emulator for legacy Korean mobile platforms. Patterns that came up repeatedly: host abstraction, async as a threading model, callback trampolines, and binary format handling."
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Fira+Code:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍊</text></svg>"
+    />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav>
+      <div class="container">
+        <a href="/" class="logo">dlunch</a>
+        <ul>
+          <li><a href="/#projects">← Projects</a></li>
+          <li><a href="/wie.html">WIE</a></li>
+          <li><a href="/rustjava.html">RustJava</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="page-layout">
+      <aside class="ad-side ad-side-left">
+        <section
+          class="ad-section ad-section-side"
+          id="ad-section-left"
+        ></section>
+      </aside>
+      <main class="main-container article-container">
+        <!-- Article Header -->
+        <header class="article-header">
+          <p class="article-kicker">Notes</p>
+          <h1>Writing a Mobile Platform Emulator</h1>
+          <p class="article-lede">
+            A collection of patterns that came up repeatedly while
+            building WIE, an emulator for legacy Korean mobile
+            platforms. None of this is theory — every pattern
+            described here ended up in the codebase because the
+            alternatives were worse. The targets these notes have
+            in mind are old feature-phone runtimes, but most of the
+            principles generalize to other "emulate a software
+            platform that wraps real hardware" situations.
+          </p>
+        </header>
+
+        <article class="prose">
+          <section>
+            <h2>Decide What You're Actually Emulating</h2>
+            <p>
+              An emulator for "an old mobile platform" can mean
+              several different things, and the choice up front
+              changes the entire shape of the project. The four
+              main options:
+            </p>
+            <ul>
+              <li>
+                <strong>Pure hardware emulation</strong> —
+                emulate the CPU, memory map, peripherals, and
+                let the original firmware run on top. Maximum
+                fidelity, maximum work, and you need ROM
+                dumps of the firmware.
+              </li>
+              <li>
+                <strong>HLE (high-level emulation) of the
+                runtime</strong> — emulate the application
+                runtime APIs directly in host code, skipping
+                the firmware entirely. Far less code, but you
+                have to know what the runtime actually does.
+              </li>
+              <li>
+                <strong>Hybrid</strong> — emulate the CPU and
+                memory map enough to run application binaries,
+                but replace the platform's runtime services
+                with host implementations. This is what WIE
+                does for KTF and LG Telecom apps.
+              </li>
+              <li>
+                <strong>Pure VM emulation</strong> — for
+                bytecode-only platforms (J2ME, SKT WIPI), no
+                CPU emulation needed at all. Just implement
+                the VM and the standard library.
+              </li>
+            </ul>
+            <p>
+              The right choice depends on what's in the app
+              archive. If apps ship as bytecode for a known VM,
+              there's no reason to drag in a CPU emulator. If
+              apps ship as AOT-compiled native code (KTF's
+              <code>client.bin</code>, for example), you need
+              instruction-level execution for at least the
+              parts of the code that were compiled. Decide this
+              first, because it determines whether you're
+              writing a VM or a CPU emulator or both.
+            </p>
+          </section>
+
+          <section>
+            <h2>Push Everything OS-Specific Behind a Trait</h2>
+            <p>
+              The single most useful structural decision in WIE
+              was making the host environment an explicit
+              dependency. Everything that touches the outside
+              world — the window, audio output, filesystem,
+              clock, standard I/O — goes through one trait. The
+              emulator core takes that trait as input and never
+              calls into the operating system directly.
+            </p>
+            <p>
+              The immediate benefit is that the same emulator
+              core can be driven by a command-line host during
+              development and by a web frontend in production
+              without any conditional compilation in between.
+              The deeper benefit is that the trait forces you
+              to enumerate exactly what host capabilities the
+              emulator needs. If you can't write down the host
+              interface as a finite list of methods, the
+              emulator is probably reaching into the host in
+              ways that will break the first time you change
+              hosts.
+            </p>
+            <p>
+              For WebAssembly targets specifically, this also
+              prevents an entire class of build-time
+              surprises. <code>no_std</code> in the core
+              crates plus an explicit host trait means the
+              emulator literally cannot accidentally depend on
+              filesystem APIs or native threading. Whatever
+              the host provides is what's available, full
+              stop.
+            </p>
+          </section>
+
+          <section>
+            <h2>Use Async as the Threading Model</h2>
+            <p>
+              Old mobile platforms almost always have a
+              threading model. WIPI apps spawn threads, J2ME
+              apps spawn threads, native ARM code on KTF runs
+              in its own thread context, and the original
+              platform supplied an OS-level scheduler to make
+              this work. Reproducing that scheduler on every
+              host environment — especially in a browser,
+              where OS threads aren't directly accessible —
+              is annoying.
+            </p>
+            <p>
+              The pattern that worked: model each emulated
+              thread as a cooperative async task. The
+              emulator's executor takes the role of the
+              original platform's scheduler. Each task owns
+              its own per-thread state (register file, stack,
+              JVM frame stack, whatever the platform needs)
+              and yields at points where the original code
+              would have yielded — typically blocking system
+              calls, sleeps, and audio waits.
+            </p>
+            <p>
+              This collapses what would otherwise be three
+              different threading implementations (native
+              threads, browser-side Web Workers, and CLI
+              tooling) into one. The emulator only knows about
+              tasks; the host decides how those tasks actually
+              get driven. On the browser side this also
+              removes the need for any thread synchronization
+              primitives, because the tasks are
+              single-threaded by construction.
+            </p>
+          </section>
+
+          <section>
+            <h2>Callback Trampolines for Native Bridges</h2>
+            <p>
+              When you're running emulated native code that
+              needs to call host functions — say, a WIPI C API
+              call that has to draw to a host-side framebuffer
+              — the standard solution is callback
+              trampolines. The pattern is:
+            </p>
+            <ul>
+              <li>
+                The host registers a function with the
+                emulator and receives a synthetic address in
+                return. The address is not a real instruction
+                pointer; it's a sentinel value that the
+                emulator recognizes.
+              </li>
+              <li>
+                The host writes that synthetic address into
+                emulated memory wherever the application's
+                code expects a function pointer to a platform
+                routine.
+              </li>
+              <li>
+                When emulated execution reaches the synthetic
+                address, the CPU emulator suspends normal
+                instruction dispatch and invokes the
+                registered host function instead. The host
+                function can read and write emulated state
+                directly, then return.
+              </li>
+            </ul>
+            <p>
+              This is a small mechanism that ends up carrying
+              an enormous amount of weight. In WIE, every
+              WIPI C API call goes through it. Every Java
+              bridge trampoline does too. Native import
+              resolution, allocation helpers, exception
+              handlers, class loading — all of it. The
+              emulator core only has to understand
+              "execution reached a trampoline address;
+              suspend and call out." Everything
+              platform-specific lives on the host side.
+            </p>
+            <p>
+              The discipline this enforces is worth more
+              than the mechanism itself. Because every
+              host-side service is a registered function,
+              you can grep your codebase for every place
+              the emulated code talks to the outside world.
+              There's no hidden coupling, no "this function
+              happens to be called from native code
+              sometimes," no surprise side effects.
+            </p>
+          </section>
+
+          <section>
+            <h2>Treat Binary Formats as a First-Class Concern</h2>
+            <p>
+              A lot of the work in emulating old platforms
+              isn't execution — it's parsing. Application
+              archives come in undocumented formats. Native
+              binaries embed platform-specific metadata
+              structures that look like C structs but with
+              packing and alignment that nobody wrote down.
+              The "Java classes" in a KTF binary aren't
+              <code>.class</code> files at all but
+              proprietary descriptors that point to AOT-
+              compiled ARM code.
+            </p>
+            <p>
+              Treat the binary format definitions as a
+              proper first-class artifact of the project,
+              not as inline parsing scattered across the
+              codebase. A separate crate that holds the
+              reverse-engineered struct definitions, with
+              names and field offsets and known-good test
+              cases, becomes the source of truth for
+              "what does this byte mean." When you later
+              discover that field 0x4C is actually a
+              flag rather than a pointer, you change it in
+              one place and the rest of the emulator
+              follows.
+            </p>
+            <p>
+              This is also the artifact that survives the
+              project. Code rots, but a well-documented
+              binary format definition file is useful
+              indefinitely — including to future
+              preservation efforts that don't even use the
+              same emulator.
+            </p>
+          </section>
+
+          <section>
+            <h2>Don't Force All Platforms Through One Abstraction</h2>
+            <p>
+              The instinct when you're supporting multiple
+              platforms is to find the common abstraction
+              and route everything through it. Resist this
+              for the platform-specific layers. The
+              individual platforms genuinely are different —
+              they have different boot sequences, different
+              binary formats, different native integration
+              models — and trying to hide those differences
+              behind a single interface either leaks the
+              differences anyway or imposes constraints that
+              don't match how the platforms actually
+              worked.
+            </p>
+            <p>
+              Share what's actually shared (the JVM, the
+              ARM core, the audio path, the host
+              abstraction) and let each platform crate own
+              its own boot sequence and native integration.
+              The total amount of code is roughly the same
+              either way, but the platform-specific code is
+              much easier to read and modify when it isn't
+              draped over a generic abstraction that
+              wasn't designed for it.
+            </p>
+          </section>
+
+          <section>
+            <h2>Expect Audio to Be Its Own Project</h2>
+            <p>
+              On the platforms WIE targets, the audio
+              format is SMAF (Yamaha's MMF). It's not
+              MIDI, it's not PCM, it's not anything an
+              off-the-shelf library decodes. The format
+              has its own event timeline, its own
+              instrument definitions, and several variant
+              tracks that need to be unified at playback
+              time.
+            </p>
+            <p>
+              Building a SMAF/MMF decoder ended up being
+              its own separate project, used by WIE but
+              independent of it. This generalizes:
+              whatever the audio format on your target
+              platform is, expect that supporting it
+              well will be its own sub-project. Audio is
+              never just "decode a buffer and play it";
+              there are timing constraints, looping
+              behavior, hardware-specific quirks, and
+              platform-specific event semantics that all
+              have to be respected if applications are
+              going to behave the way they did on
+              hardware.
+            </p>
+          </section>
+
+          <section>
+            <h2>Reverse Engineering Is Most of the Work</h2>
+            <p>
+              The implementation of the emulator is, in
+              the end, not the hard part. The hard part
+              is figuring out what to implement: what
+              each platform API actually does, what
+              undocumented behaviors applications rely
+              on, what the binary structures actually
+              contain, what side effects matter and
+              what side effects don't. That work is
+              reverse engineering — disassembling
+              binaries, tracing execution against real
+              hardware logs where you have them, and
+              guessing at intent from observed
+              behavior.
+            </p>
+            <p>
+              Budget for this honestly. The visible
+              output of an emulator project is the
+              running application, but most of the
+              hours are spent in disassemblers and
+              hex editors and notebooks, well before
+              anything visible to a user shows up. The
+              upside is that the reverse-engineering
+              output — binary format documentation,
+              API behavior notes, structure layouts
+              — is durable and reusable in ways that
+              the emulator code itself isn't.
+            </p>
+          </section>
+
+          <section class="article-note">
+            <p>
+              This page is a best-effort write-up — some details may
+              be inaccurate or out of date. If you spot an error,
+              please flag it via the email on the
+              <a href="/#contact">home page</a>.
+            </p>
+          </section>
+
+          <section class="article-cta">
+            <h2>References</h2>
+            <p>
+              The patterns above are extracted from WIE.
+              For specifics — how the layering actually
+              looks in code, what the RustJava JVM
+              provides, what the KTF binary format
+              contains — see the project write-ups.
+            </p>
+            <div class="cta-buttons">
+              <a href="/wie.html" class="btn btn-primary"
+                >📱 WIE technical overview</a
+              >
+              <a href="/rustjava.html" class="btn btn-secondary"
+                >☕ RustJava overview</a
+              >
+            </div>
+          </section>
+        </article>
+      </main>
+      <aside class="ad-side ad-side-right">
+        <section
+          class="ad-section ad-section-side"
+          id="ad-section-right"
+        ></section>
+      </aside>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <p>© 2024–2026 dlunch.net</p>
+      <p>
+        <a href="/privacy.html">Privacy Policy</a> · Built with ❤️
+      </p>
+    </footer>
+  </body>
+</html>

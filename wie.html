@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WIE: A Technical Overview — dlunch.net</title>
+    <meta
+      name="description"
+      content="WIE is a browser-based emulator for legacy Korean mobile platforms — WIPI, SKVM, and J2ME. This page is a technical overview of how it's structured."
+    />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Fira+Code:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍊</text></svg>"
+    />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav>
+      <div class="container">
+        <a href="/" class="logo">dlunch</a>
+        <ul>
+          <li><a href="/#projects">← Projects</a></li>
+          <li><a href="https://wie-site.dlunch.net">Try WIE</a></li>
+          <li><a href="https://github.com/dlunch/wie">GitHub</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <div class="page-layout">
+      <aside class="ad-side ad-side-left">
+        <section
+          class="ad-section ad-section-side"
+          id="ad-section-left"
+        ></section>
+      </aside>
+      <main class="main-container article-container">
+        <!-- Article Header -->
+        <header class="article-header">
+          <p class="article-kicker">Project Write-up</p>
+          <h1>WIE: A Technical Overview</h1>
+          <p class="article-lede">
+            WIE is an emulator for legacy Korean mobile application platforms
+            — primarily WIPI, with additional support for SKVM and J2ME. It
+            runs entirely in the browser through Rust compiled to
+            WebAssembly. This page is a walkthrough of how the project is
+            organized internally, the trade-offs behind the architecture,
+            and the historical context that makes the project necessary in
+            the first place.
+          </p>
+        </header>
+
+        <article class="prose">
+          <section>
+            <h2>What WIPI Was</h2>
+            <p>
+              WIPI — short for <em>Wireless Internet Platform for
+              Interoperability</em> — was the mobile application platform
+              mandated on Korean feature phones from April 2005 to April
+              2009. During that period every domestically sold handset had
+              to ship with a WIPI runtime, and most Korean mobile apps and
+              games of that era were built on top of it.
+            </p>
+            <p>
+              In practice the platform was more of a family than a single
+              specification. Each carrier shipped its own WIPI
+              implementation, with carrier-specific extensions and binary
+              formats. KTF compiled Java methods ahead-of-time into ARM
+              native code packaged in a single <code>client.bin</code>
+              file. LG Telecom used ELF native binaries with
+              import-table integration into the runtime. SK Telecom's
+              WIPI ran entirely inside its Java virtual machine, with no
+              ARM execution involved. After the mandate was lifted,
+              smartphones replaced feature phones within a few years and
+              the entire ecosystem effectively wound down — the hardware
+              aged out of service, the carrier-side infrastructure was
+              shut down, and the original applications became unrunnable
+              in any practical sense.
+            </p>
+          </section>
+
+          <section>
+            <h2>Why an Emulator?</h2>
+            <p>
+              The motivation behind WIE is digital preservation and
+              educational research rather than nostalgia for its own
+              sake. A decade-plus of Korean mobile software history —
+              including games that were widely popular at the time but
+              were never ported anywhere else — exists today only as
+              binary archives that no current device can execute. Without
+              a working emulator, those binaries are functionally
+              opaque: you can read them with a hex editor, but you can't
+              run them, debug them, or study how they behave at runtime.
+            </p>
+            <p>
+              An emulator changes that. With WIE, a WIPI archive can be
+              loaded into a browser and executed the same way the
+              original handset would have executed it, with the runtime
+              quirks and platform behaviors preserved. The same
+              infrastructure also makes the binaries inspectable in ways
+              the original devices never allowed: you can attach debug
+              tracing to native calls, dump intermediate state, and
+              cross-reference the running app against its
+              reverse-engineered structure definitions.
+            </p>
+          </section>
+
+          <section>
+            <h2>Architecture at a Glance</h2>
+            <p>
+              Internally, WIE is organized around three layers. The
+              <strong>host layer</strong> owns everything that touches
+              the outside world: the window, audio output, filesystem,
+              clock, and standard I/O. It's abstracted behind a single
+              <code>Platform</code> trait so the same emulator core can
+              be driven by a command-line host during development and
+              by the web frontend in production.
+            </p>
+            <p>
+              The <strong>runtime layer</strong> sits above the host
+              layer. It owns task scheduling, event delivery, audio
+              playback, and the platform-neutral services that emulated
+              applications expect to find. This is where the cooperative
+              async executor lives, where the virtual filesystem is
+              populated from the input archive, and where audio handles
+              are managed.
+            </p>
+            <p>
+              Finally, the <strong>execution layer</strong> is where
+              platform-specific application code actually runs. It's
+              split between two engines: a Java virtual machine for
+              bytecode execution, and an ARM emulator for the native
+              code that some WIPI variants compile their applications
+              into. Different platform crates (KTF, LGT, SKT, J2ME)
+              choose which of these engines to use, and how to wire them
+              together.
+            </p>
+          </section>
+
+          <section>
+            <h2>Platform Variants</h2>
+            <p>
+              WIE supports four distinct platform targets, each
+              implemented as its own Rust crate sitting on top of the
+              shared backend.
+            </p>
+            <ul>
+              <li>
+                <strong>KTF</strong> — the most demanding of the four.
+                KTF apps ship as a JAR containing a
+                <code>client.bin</code> file, which holds AOT-compiled
+                ARM machine code for every Java method along with
+                platform-specific class metadata. There are no
+                <code>.class</code> files anywhere in the package. The
+                emulator has to load the binary into ARM memory,
+                interpret the metadata structures, and bridge the
+                AOT-compiled code back to a Rust-hosted JVM so that
+                Java semantics still work.
+              </li>
+              <li>
+                <strong>LGT</strong> — uses native ELF binaries instead
+                of an AOT-compiled blob. Integration with the runtime
+                happens through an import table, which the emulator
+                resolves against its Rust-side WIPI implementation.
+                Like KTF, LGT runs as a mix of ARM execution and JVM
+                execution.
+              </li>
+              <li>
+                <strong>SKT</strong> — pure-JVM platform. No ARM core
+                is created at all; the emulator builds a JVM with the
+                required API surface and invokes the application's
+                Java entry point directly.
+              </li>
+              <li>
+                <strong>J2ME</strong> — the international Java ME
+                standard, supported here for completeness. Also
+                runs entirely inside the JVM, with MIDP APIs (LCDUI,
+                RMS, media) provided by Rust-defined class prototypes.
+              </li>
+            </ul>
+            <p>
+              The choice to keep platform crates separate, rather than
+              forcing everything through a unified abstraction, is
+              deliberate. Each platform has its own boot sequence,
+              binary format, and native integration model. Trying to
+              hide those differences behind a single API would either
+              leak the differences anyway or impose constraints that
+              don't match how the original runtimes actually worked.
+            </p>
+          </section>
+
+          <section>
+            <h2>Crossing the Rust/ARM Boundary</h2>
+            <p>
+              The most interesting part of the emulator — and the part
+              that took the most iteration to get right — is how Rust
+              code and emulated ARM code call each other. The basic
+              mechanism is callback registration. Rust registers a
+              function with the ARM core and receives a synthetic
+              address in return. The ARM core embeds that address into
+              its memory map; when ARM execution reaches it, the core
+              suspends normal stepping and calls back into the
+              registered Rust function. The Rust function can read
+              and write emulated registers and memory, perform whatever
+              host-side work is needed, and then hand control back to
+              the ARM context.
+            </p>
+            <p>
+              This single pattern carries a surprising amount of weight.
+              WIPI C functions exposed to the application are
+              implemented this way. Java bridge trampolines that let
+              AOT-compiled ARM code call into the Rust-hosted JVM use
+              the same mechanism. Native import resolution, exception
+              handling, allocation, and class loading all flow through
+              registered callbacks. The result is that the ARM
+              emulator only has to know how to execute ARM
+              instructions and how to detect when it's hit a callback
+              boundary; everything platform-specific lives on the Rust
+              side, where it's easier to reason about and test.
+            </p>
+          </section>
+
+          <section>
+            <h2>Running in the Browser</h2>
+            <p>
+              Most of the crates in the WIE workspace are written as
+              <code>no_std</code> crates. The host-facing crates can
+              use <code>std</code> freely, but the emulator core,
+              runtime services, and platform implementations are kept
+              independent of the operating system. This is what makes
+              the WebAssembly target practical: there's no accidental
+              dependency on filesystem APIs, threading primitives, or
+              anything else the browser sandbox doesn't provide.
+            </p>
+            <p>
+              The threading model is worth a closer look. ARM-backed
+              platforms like KTF and LGT need thread-local ARM state,
+              because the original handsets ran multiple ARM threads
+              and apps depend on that behavior. The browser, however,
+              doesn't expose real OS threads in a way that the
+              emulator can use uniformly. WIE addresses this by
+              representing thread-like behavior through a cooperative
+              async executor: each ARM thread becomes an async task
+              that owns its own ARM context, and the executor moves
+              tasks in and out of the ARM core as needed. The same
+              executor drives pure-JVM platforms directly, without
+              any ARM involvement. The async runtime ends up being
+              the portability layer that preserves thread semantics
+              on a target that has no real threads.
+            </p>
+          </section>
+
+          <section>
+            <h2>Related Projects</h2>
+            <p>
+              WIE depends on several supporting libraries that are
+              technically separate Cargo packages but are maintained
+              alongside the emulator and exist primarily to serve it.
+            </p>
+            <ul>
+              <li>
+                <strong>RustJava</strong> provides the JVM core itself
+                — class loading, runtime support, and the Rust-defined
+                class prototype system that lets WIPI and MIDP APIs be
+                implemented in Rust rather than Java.
+              </li>
+              <li>
+                <strong>wipi / wipi_types</strong> hold the
+                reverse-engineered binary structure definitions and
+                ABI-level constants used to decode pointers read from
+                emulated memory. The same project also functions as a
+                homebrew SDK for building new applications targeting
+                the emulator.
+              </li>
+              <li>
+                <strong>smaf / smaf_player</strong> handle the
+                Yamaha SMAF / MMF audio format used by most WIPI
+                applications, parsing audio assets into timed events
+                that get translated into PCM or MIDI output on the
+                host side.
+              </li>
+            </ul>
+          </section>
+
+          <section class="article-note">
+            <p>
+              This page is a best-effort write-up — some details may
+              be inaccurate or out of date. If you spot an error,
+              please flag it via the email on the
+              <a href="/#contact">home page</a>.
+            </p>
+          </section>
+
+          <section class="article-cta">
+            <h2>Try it</h2>
+            <p>
+              WIE is open source under a permissive license. The
+              browser build is hosted at the project site, the source
+              and contribution guide are on GitHub, and the project
+              continues to evolve as more platform-specific edge
+              cases get pinned down.
+            </p>
+            <div class="cta-buttons">
+              <a href="https://wie-site.dlunch.net" class="btn btn-primary"
+                >🚀 Try WIE in the browser</a
+              >
+              <a
+                href="https://github.com/dlunch/wie"
+                class="btn btn-secondary"
+                >💻 View source on GitHub</a
+              >
+            </div>
+          </section>
+        </article>
+      </main>
+      <aside class="ad-side ad-side-right">
+        <section
+          class="ad-section ad-section-side"
+          id="ad-section-right"
+        ></section>
+      </aside>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+      <p>© 2024–2026 dlunch.net</p>
+      <p>
+        <a href="/privacy.html">Privacy Policy</a> · Built with ❤️
+      </p>
+    </footer>
+  </body>
+</html>

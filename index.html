@@ -52,7 +52,9 @@
         <a href="#" class="logo">dlunch</a>
         <ul>
           <li><a href="#about">About</a></li>
+          <li><a href="#interests">Focus</a></li>
           <li><a href="#projects">Projects</a></li>
+          <li><a href="#writing">Writing</a></li>
           <li><a href="#contact">Contact</a></li>
         </ul>
       </div>
@@ -91,18 +93,36 @@
           <div class="about-content">
             <div class="about-text">
               <p>
-                I'm a hacker who loves digging into how things work. Whether
-                it's reverse engineering old software or building new tools, I
-                enjoy the process of learning and experimenting.
+                I'm a hacker at heart — someone who can't leave a piece of
+                software alone when it works but I don't yet understand why.
+                Whether it's reverse engineering old binaries, dissecting an
+                undocumented file format, or piecing together how a long-dead
+                runtime actually behaves, I find the process of figuring
+                things out more interesting than most polished end results.
               </p>
               <p>
-                I'm an active open source contributor and enjoy bringing ideas
-                to life through side projects. I value clean, efficient code and
-                believe in sharing knowledge with the community.
+                Most of what I build comes out of that habit. If I run into a
+                problem worth solving twice, it usually ends up as a small
+                tool, a CLI utility, or a longer-running project like WIE. I
+                lean toward systems-level work — emulators, parsers, virtual
+                machines — but I'll reach for whatever fits the job: Rust for
+                performance-sensitive code, C++ when I'm interfacing with
+                legacy ecosystems, TypeScript for anything that lives in the
+                browser, and Python or shell for quick one-offs.
               </p>
               <p>
-                Currently working on various personal projects and documenting
-                the journey on my blog.
+                Open source is where most of this work lives. I contribute
+                back when I can, ship my own projects publicly by default,
+                and try to write things up on the blog so the next person
+                hitting the same wall doesn't have to start from scratch.
+              </p>
+              <p>
+                These days I spend most of my hobby time on emulation,
+                WebAssembly tooling, and the long tail of legacy platforms
+                that no longer have anyone maintaining them officially.
+                There's something satisfying about taking software that was
+                effectively dead and putting it back into a state where you
+                can run it, study it, or build on it again.
               </p>
             </div>
             <div class="skills-grid">
@@ -120,6 +140,66 @@
           </div>
         </section>
 
+        <!-- Interests / Focus Section -->
+        <section id="interests">
+          <h2 class="section-title">What I Work On</h2>
+          <p class="section-subtitle">Recurring threads in my projects</p>
+
+          <div class="interests-content">
+            <div class="interest-block">
+              <h3>🕹️ Emulation &amp; Preservation</h3>
+              <p>
+                Platforms from the late 90s and 2000s — feature-phone
+                runtimes like WIPI, early Java ME stacks, niche embedded
+                systems — are quietly slipping out of reach. The hardware
+                ages, the runtimes lose vendor support, and a lot of
+                software written for them ends up effectively unrunnable.
+                Writing emulators is one of the few practical ways to keep
+                this software alive: not just nostalgically, but in a form
+                where you can still execute it, debug it, study it, and
+                learn from how it was actually built.
+              </p>
+            </div>
+            <div class="interest-block">
+              <h3>🔬 Reverse Engineering</h3>
+              <p>
+                When source code isn't available and the documentation is
+                incomplete or wrong, reading the binary is often the only
+                way forward. I spend a fair amount of time in disassemblers,
+                decompilers, and debuggers — sometimes to figure out an
+                undocumented API surface for an emulator, sometimes just
+                because I'm curious how a particular piece of shipped
+                software actually behaves under the hood. The output is
+                usually a parser, a working reimplementation, or a write-up
+                explaining what I found.
+              </p>
+            </div>
+            <div class="interest-block">
+              <h3>🌐 The Browser as a Runtime</h3>
+              <p>
+                WebAssembly has quietly changed what you can ship to users
+                without asking them to install anything. WIE runs entirely
+                in the browser through Rust compiled to WASM — no native
+                binary, no platform-specific build, just a URL. I keep
+                finding new uses for the same approach: tools that used to
+                need a download now live behind a link, and the friction
+                for users to actually try something drops to nearly zero.
+              </p>
+            </div>
+            <div class="interest-block">
+              <h3>🛠️ Small Tools &amp; Utilities</h3>
+              <p>
+                Not everything has to be a large project. A lot of what I
+                build is small — a CLI that automates something I do once a
+                week, a script that turns a manual workflow into a one-liner,
+                a browser extension that fixes a specific annoyance. These
+                rarely show up on the front page, but they're where most of
+                the day-to-day learning actually happens.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <!-- Projects Section -->
         <section id="projects">
           <h2 class="section-title">Projects</h2>
@@ -130,30 +210,53 @@
               <div class="icon">📱</div>
               <h3>WIE (WIPI Emulator)</h3>
               <p>
-                A WIPI (Wireless Internet Platform for Interoperability)
-                emulator that runs in the browser. Built with Rust and
-                WebAssembly, it allows you to run legacy Korean mobile
-                applications from the 2000s era.
+                An emulator for WIPI — the Wireless Internet Platform for
+                Interoperability, the mobile application stack mandated on
+                Korean feature phones in the mid-2000s. A whole generation
+                of mobile games and apps were built on it before the
+                platform was deprecated, and most of that software has been
+                effectively unrunnable for years.
+              </p>
+              <p>
+                WIE reimplements the runtime in Rust and compiles to
+                WebAssembly so it runs entirely in a web page — no
+                installation, no native dependencies. The project covers
+                the bytecode execution layer, the WIPI API surface, and
+                the device-specific behaviors that real handsets used to
+                provide.
               </p>
               <div class="tech-stack">
                 <span>WebAssembly</span>
                 <span>Rust</span>
                 <span>Emulator</span>
+                <span>Reverse Engineering</span>
               </div>
-              <a href="https://wie-site.dlunch.net" class="link">Try WIE</a>
+              <div class="project-links">
+                <a href="/wie.html" class="link">Technical overview</a>
+                <a href="https://wie-site.dlunch.net" class="link">Try WIE</a>
+              </div>
             </article>
             <article class="project-card">
               <div class="icon">📖</div>
               <h3>Tech Blog</h3>
               <p>
-                A personal tech blog where I document things I've learned while
-                developing, problem-solving processes, and technical
-                explorations. I share experiences with various programming
-                languages and frameworks.
+                A personal tech blog where I write up the things I figure
+                out: reverse engineering walkthroughs, emulator
+                implementation notes, language and runtime internals, and
+                the occasional debugging story. It doubles as my own
+                reference — I end up re-reading old posts whenever I run
+                into a similar problem again.
+              </p>
+              <p>
+                Posts tend to be longer-form and focused on the how and
+                why rather than quick tips. If you're interested in the
+                same kinds of low-level work I describe here, the blog is
+                where most of it actually gets documented.
               </p>
               <div class="tech-stack">
-                <span>Blog</span>
-                <span>Tech</span>
+                <span>Reverse Engineering</span>
+                <span>Emulation</span>
+                <span>Systems</span>
               </div>
               <a href="https://blog.dlunch.net" class="link">Visit Blog</a>
             </article>
@@ -166,6 +269,53 @@
           id="ad-section"
           style="display: none"
         ></section>
+
+        <!-- Writing Section -->
+        <section id="writing">
+          <h2 class="section-title">Writing</h2>
+          <p class="section-subtitle">
+            Long-form notes on the projects above
+          </p>
+
+          <div class="writing-grid">
+            <a href="/wie.html" class="writing-card">
+              <p class="writing-kicker">Project Write-up</p>
+              <h3>WIE: A Technical Overview</h3>
+              <p class="writing-summary">
+                How an emulator for legacy Korean mobile platforms is
+                organized internally, from host abstraction to ARM/JVM
+                bridges to running entirely in the browser.
+              </p>
+            </a>
+            <a href="/rustjava.html" class="writing-card">
+              <p class="writing-kicker">Project Write-up</p>
+              <h3>RustJava: An Embeddable JVM in Rust</h3>
+              <p class="writing-summary">
+                Why an embedded JVM with Rust-defined class prototypes
+                ended up being the lower-overhead path for WIE, and
+                how the runtime is structured.
+              </p>
+            </a>
+            <a href="/legacy-mobile.html" class="writing-card">
+              <p class="writing-kicker">Reference</p>
+              <h3>Legacy Korean Mobile Platforms</h3>
+              <p class="writing-summary">
+                A reference for the 2000s-era Korean mobile runtimes
+                — WIPI, SKVM, GVM, KVM — and how the carriers' app
+                platforms related to each other.
+              </p>
+            </a>
+            <a href="/emulator-notes.html" class="writing-card">
+              <p class="writing-kicker">Notes</p>
+              <h3>Writing a Mobile Platform Emulator</h3>
+              <p class="writing-summary">
+                Patterns that came up repeatedly while building WIE:
+                host abstraction, async as a threading model,
+                callback trampolines, and binary format handling.
+              </p>
+            </a>
+          </div>
+        </section>
 
         <!-- Values Section -->
         <section id="values">
@@ -239,7 +389,9 @@
     <!-- Footer -->
     <footer>
       <p>© 2024–2026 dlunch.net</p>
-      <p>Built with ❤️</p>
+      <p>
+        <a href="/privacy.html">Privacy Policy</a> · Built with ❤️
+      </p>
     </footer>
   </body>
 </html>
